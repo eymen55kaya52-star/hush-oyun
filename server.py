@@ -2,6 +2,7 @@ from flask import Flask, render_template_string, request, jsonify
 import random
 import time
 import math
+import os
 
 app = Flask(__name__)
 odalar = {}
@@ -34,11 +35,13 @@ HTML_KODU = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>HUSH</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; }
         body { margin: 0; padding: 0; background: #f5f5f3; color: #111; display: flex; justify-content: center; }
         .telefon { width: 100%; max-width: 430px; min-height: 100vh; background: #f5f5f3; position: relative; display: flex; flex-direction: column; overflow-x: hidden; }
         .ekran { display: none; flex-direction: column; flex: 1; padding: 18px; }
@@ -55,16 +58,40 @@ HTML_KODU = """
         .kod-kutu { width: 44px; height: 54px; background: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
         .badge-hazir { background: #e6f9ed; color: #15803d; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
         .badge-kapali { background: #fee2e2; color: #b91c1c; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-        #harita_secim, #oyun_harita { width: 100%; height: 380px; border-radius: 20px; z-index: 1; }
+        #harita_secim, #oyun_harita { width: 100%; height: 350px; border-radius: 20px; z-index: 1; }
         .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 34px; }
         .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
         input:checked + .slider { background-color: #111; }
         input:checked + .slider:before { transform: translateX(22px); }
+        
+        /* CEP MODU (HAYALET SİYAH EKRAN) */
+        #cep_modu_katman {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000000;
+            color: #222222;
+            z-index: 99999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
     </style>
 </head>
-<body>
+<body onclick="ekranAcikTut()">
+
+<!-- CEP MODU KARARTMA EKRANI -->
+<div id="cep_modu_katman" onclick="cepModuTiklama()">
+    <div style="font-size: 28px; margin-bottom: 10px;">🌙</div>
+    <div style="font-weight: 800; font-size: 16px; color: #333;">CEP MODU AKTİF</div>
+    <div style="font-size: 12px; color: #1a1a1a; margin-top: 6px;">GPS arka planda kesintisiz çalışıyor.<br>Ekranı açmak için <b>iki kez dokun</b>.</div>
+    <div id="cep_sayac_bilgi" style="font-size: 22px; font-weight: 900; color: #1f1f1f; margin-top: 25px;">--:--</div>
+</div>
+
 <div class="telefon">
 
     <!-- 1. EKRAN: ANA EKRAN -->
@@ -74,7 +101,7 @@ HTML_KODU = """
                 <div style="background:#111; color:#fff; width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-weight:bold;">◉</div>
                 <span style="font-size:20px; font-weight:900; letter-spacing:1px;">HUSH</span>
             </div>
-            <input type="text" id="oyuncu_ismi" placeholder="Adın (Örn: Mert Efe)" style="border:1px solid #ddd; border-radius:20px; padding:8px 14px; width:170px; font-weight:600; text-align:right;">
+            <input type="text" id="oyuncu_ismi" placeholder="Adın (Örn: Mert Efe)" style="border:1px solid #ddd; border-radius:20px; padding:8px 14px; width:170px; font-weight:600; text-align:right;" onchange="localStorage.setItem('hush_isim', this.value)">
         </div>
 
         <p style="color:#666; margin:0;">İyi akşamlar,</p>
@@ -90,17 +117,17 @@ HTML_KODU = """
             <div style="display:flex; align-items:center; gap:12px;">
                 <div style="width:42px; height:42px; border-radius:50%; background:#dcfce7; border:2px dashed #16a34a;"></div>
                 <div>
-                    <div style="font-size:12px; color:#888;">Son maç • Dün</div>
-                    <div style="font-weight:700;">Maçka Parkı • 8 kişide 2.</div>
+                    <div style="font-size:12px; color:#888;">GPS Durumu</div>
+                    <div id="ana_gps_durum" style="font-weight:700; color:#15803d;">Otomatik Konum Hazır</div>
                 </div>
             </div>
-            <span style="color:#16a34a; font-weight:800;">+340 XP</span>
+            <span style="color:#16a34a; font-weight:800;">AKTİF</span>
         </div>
 
-        <button class="btn-siyah" onclick="ekranGec('ekran_kur')">+  OYUN KUR</button>
+        <button class="btn-siyah" onclick="gpsBaslat(); ekranGec('ekran_kur')">+  OYUN KUR</button>
         <div style="display:flex; gap:8px; margin-top:8px;">
             <input type="text" id="girilen_kod" placeholder="6 Haneli Oda Kodu" maxlength="6" style="flex:1; border-radius:16px; border:1px solid #ddd; padding:0 16px; font-size:16px; font-weight:700;">
-            <button class="btn-beyaz" style="width:auto; margin:0; padding:16px 24px;" onclick="odayaKatil()"># OYUNA KATIL</button>
+            <button class="btn-beyaz" style="width:auto; margin:0; padding:16px 24px;" onclick="gpsBaslat(); odayaKatil()"># OYUNA KATIL</button>
         </div>
 
         <div class="kart satir" style="margin-top:auto; justify-content:space-around; padding:12px;">
@@ -180,7 +207,7 @@ HTML_KODU = """
         <button class="btn-siyah" onclick="alanSecimeGit()">Devam: alanı seç  →</button>
     </div>
 
-    <!-- 3. EKRAN: OYUN ALANI SEÇ (CANLI SOKAK/BİNA HARİTASI) -->
+    <!-- 3. EKRAN: OYUN ALANI SEÇ -->
     <div id="ekran_alan" class="ekran">
         <div class="satir" style="margin-bottom:10px;">
             <button onclick="ekranGec('ekran_kur')" style="background:#fff; border:none; width:40px; height:40px; border-radius:50%; font-size:20px;">‹</button>
@@ -219,7 +246,7 @@ HTML_KODU = """
 
         <div style="display:flex; gap:10px; margin-bottom:16px;">
             <button class="btn-beyaz" style="margin:0; padding:12px;" onclick="navigator.clipboard.writeText(aktifKod); alert('Kod kopyalandı: '+aktifKod)">🔗 Davet linki</button>
-            <button class="btn-beyaz" style="margin:0; padding:12px;" onclick="gpsBaslat()">📍 Konumu Aç</button>
+            <button class="btn-beyaz" style="margin:0; padding:12px;" onclick="gpsBaslat()">📍 GPS Yenile</button>
         </div>
 
         <div class="satir" style="margin-bottom:8px;">
@@ -229,7 +256,7 @@ HTML_KODU = """
 
         <div id="lobi_liste" style="flex:1; overflow-y:auto;"></div>
 
-        <div style="text-align:center; font-size:12px; color:#888; margin:8px 0;">Başlamak için herkes hazır olmalı, konumlar açık olmalı</div>
+        <div style="text-align:center; font-size:12px; color:#888; margin:8px 0;">GPS bir kez onaylandığında hep açık kalır</div>
         <button id="btn_oyunu_baslat" class="btn-siyah" onclick="oyunuBaslat()">OYUNU BAŞLAT</button>
     </div>
 
@@ -238,8 +265,8 @@ HTML_KODU = """
         <h1 id="saklan_baslik" style="font-size:44px; font-weight:900; margin:0;">SAKLAN!</h1>
         <p id="saklan_alt" style="color:#aaa; margin-top:6px;">Husher'lar henüz kimseyi göremiyor.</p>
 
-        <div style="width:230px; height:230px; border-radius:50%; border:7px solid #fff; display:flex; flex-direction:column; align-items:center; justify-content:center; margin:30px 0;">
-            <div id="saklan_sayac" style="font-size:52px; font-weight:900;">03:00</div>
+        <div style="width:210px; height:210px; border-radius:50%; border:7px solid #fff; display:flex; flex-direction:column; align-items:center; justify-content:center; margin:24px 0;">
+            <div id="saklan_sayac" style="font-size:48px; font-weight:900;">03:00</div>
             <div id="saklan_toplam" style="font-size:13px; color:#888;">/ 03:00</div>
         </div>
 
@@ -250,10 +277,10 @@ HTML_KODU = """
                 <div id="saklan_mesafe" style="font-size:12px; color:#86efac;">Sınıra 310 m • GPS ±4 m</div>
             </div>
         </div>
-        <p style="font-size:12px; color:#666; margin-top:40px;">Herkese açık alanlarda kal. Yollarda ve özel mülklerde saklanma.</p>
+        <button class="btn-beyaz" style="background:#1a1a1a; color:#fff; border-color:#333; margin-top:16px;" onclick="cepModuAc()">🌙 Cep Modu (Cebe Koyarken Bas)</button>
     </div>
 
-    <!-- 6. EKRAN: AKTİF OYUN (CANLI SOKAK HARİTASI İLE) -->
+    <!-- 6. EKRAN: AKTİF OYUN -->
     <div id="ekran_oyun" class="ekran" style="padding:12px;">
         <div id="ust_bar_normal" class="kart" style="margin-bottom:8px;">
             <div class="satir">
@@ -281,7 +308,7 @@ HTML_KODU = """
         </div>
 
         <div style="position:relative; flex:1;">
-            <div id="oyun_harita" style="height:400px;"></div>
+            <div id="oyun_harita"></div>
             <div id="konum_uyari_balonu" style="position:absolute; top:12px; left:50%; transform:translateX(-50%); background:#fff; padding:8px 14px; border-radius:20px; font-size:12px; font-weight:600; box-shadow:0 2px 10px rgba(0,0,0,0.15); z-index:500; white-space:nowrap;">
                 Husher'lar seni <b>burada</b> görüyor
             </div>
@@ -299,11 +326,12 @@ HTML_KODU = """
             <button class="btn-siyah" style="margin-top:10px; padding:12px;" onclick="haritaMerkezle()">➤ Güvenli rotayı göster</button>
         </div>
 
-        <div id="alt_aksiyon_bar" style="display:flex; gap:10px; margin-top:10px;">
+        <div id="alt_aksiyon_bar" style="display:flex; gap:8px; margin-top:8px;">
             <input type="file" accept="image/*" capture="environment" id="kamera_girdi" style="display:none" onchange="husherFotografla()">
-            <button id="btn_foto_cek" class="btn-siyah" style="flex:1.4; margin:0;" onclick="document.getElementById('kamera_girdi').click()">📷 Husher'ı fotoğrafla</button>
-            <button id="btn_yakalandim" class="btn-beyaz" style="flex:1; margin:0;" onclick="yakalandimBildir()">🏁 Yakalandım</button>
+            <button id="btn_foto_cek" class="btn-siyah" style="flex:1.3; margin:0; padding:14px;" onclick="document.getElementById('kamera_girdi').click()">📷 Fotoğrafla</button>
+            <button id="btn_yakalandim" class="btn-beyaz" style="flex:1; margin:0; padding:14px;" onclick="yakalandimBildir()">🏁 Yakalandım</button>
         </div>
+        <button class="btn-beyaz" style="background:#111; color:#fff; margin-top:8px; padding:13px;" onclick="cepModuAc()">🌙 Cep Modu (Cebe Koyarken Bas)</button>
     </div>
 
     <!-- 7. EKRAN: FOTOĞRAF ONAY ( +100 XP ) -->
@@ -329,7 +357,76 @@ HTML_KODU = """
 let ayarlar = { oyuncu: 8, sure: 20, saklanma: 3, husher: 2, konum: 2, yaricap: 450 };
 let oyuncuAdi = "", aktifKod = "", gpsAcik = false, lat = 41.2867, lon = 36.3300;
 let haritaSecim = null, secimDaire = null, oyunHarita = null, oyunDaire = null, icDaire = null, oyuncuMarker = null, husherPinleri = [];
-let takipTimer = null;
+let takipTimer = null, gpsIzleyici = null, uykuKilidi = null, sonTiklama = 0;
+
+// Ekranın kapanmasını engelleyen Wake Lock fonksiyonu
+async function ekranAcikTut() {
+    try {
+        if ('wakeLock' in navigator && !uykuKilidi) {
+            uykuKilidi = await navigator.wakeLock.request('screen');
+            uykuKilidi.addEventListener('release', () => { uykuKilidi = null; });
+        }
+    } catch (err) {}
+}
+
+// Cep Modu (Hayalet Siyah Ekran) Aç / Kapat
+function cepModuAc() {
+    ekranAcikTut();
+    gpsBaslat();
+    document.getElementById('cep_modu_katman').style.display = 'flex';
+}
+
+function cepModuTiklama() {
+    let simdi = new Date().getTime();
+    if (simdi - sonTiklama < 400) {
+        document.getElementById('cep_modu_katman').style.display = 'none';
+    }
+    sonTiklama = simdi;
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        ekranAcikTut();
+        gpsBaslat();
+    }
+});
+
+window.addEventListener('load', () => {
+    const kayitliIsim = localStorage.getItem('hush_isim');
+    if (kayitliIsim) document.getElementById('oyuncu_ismi').value = kayitliIsim;
+
+    if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'geolocation' }).then(res => {
+            if (res.state === 'granted') {
+                gpsBaslat();
+            }
+        });
+    }
+    if (localStorage.getItem('hush_gps_izin') === 'evet') {
+        gpsBaslat();
+    }
+});
+
+function gpsBaslat() {
+    ekranAcikTut();
+    if (!navigator.geolocation) return;
+    if (gpsIzleyici !== null) navigator.geolocation.clearWatch(gpsIzleyici);
+
+    gpsIzleyici = navigator.geolocation.watchPosition(pos => {
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+        gpsAcik = true;
+        localStorage.setItem('hush_gps_izin', 'evet');
+        const dEl = document.getElementById('ana_gps_durum');
+        if (dEl) dEl.innerText = `GPS Aktif (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+        if (oyunHarita && oyuncuMarker) {
+            oyuncuMarker.setLatLng([lat, lon]);
+        }
+    }, () => {
+        gpsAcik = true;
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+    gpsAcik = true;
+}
 
 function ekranGec(id) {
     document.querySelectorAll('.ekran').forEach(e => e.classList.remove('aktif'));
@@ -354,24 +451,11 @@ function segSec(tip, deger, btn) {
     btn.classList.add('secili');
 }
 
-function gpsBaslat() {
-    if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(pos => {
-            lat = pos.coords.latitude; lon = pos.coords.longitude; gpsAcik = true;
-            if(oyunHarita && oyuncuMarker) {
-                oyuncuMarker.setLatLng([lat, lon]);
-            }
-        }, () => { gpsAcik = true; }, { enableHighAccuracy: true });
-    }
-    gpsAcik = true;
-}
-
 function alanSecimeGit() {
     gpsBaslat();
     ekranGec('ekran_alan');
 }
 
-// OpenStreetMap Canlı Sokak/Bina Haritası (Alan Seçim)
 function haritaSecimKur() {
     if(!haritaSecim) {
         haritaSecim = L.map('harita_secim', {zoomControl: false}).setView([lat, lon], 16);
@@ -397,6 +481,7 @@ function yaricapGuncelle(val) {
 
 async function odayiTamamla() {
     oyuncuAdi = document.getElementById('oyuncu_ismi').value.trim() || "Mert Efe";
+    localStorage.setItem('hush_isim', oyuncuAdi);
     ayarlar.daralma = document.getElementById('sw_daralma').checked;
     ayarlar.foto = document.getElementById('sw_foto').checked;
     ayarlar.kurucu = oyuncuAdi;
@@ -411,6 +496,7 @@ async function odayiTamamla() {
 
 async function odayaKatil() {
     oyuncuAdi = document.getElementById('oyuncu_ismi').value.trim() || "Oyuncu_" + Math.floor(Math.random()*90+10);
+    localStorage.setItem('hush_isim', oyuncuAdi);
     aktifKod = document.getElementById('girilen_kod').value.trim();
     if(aktifKod.length !== 6) { alert("6 haneli oda kodunu girin!"); return; }
     let res = await fetch('/katil', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kod:aktifKod, oyuncu:oyuncuAdi})});
@@ -433,7 +519,6 @@ async function oyunuBaslat() {
     await fetch('/baslat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kod:aktifKod})});
 }
 
-// OpenStreetMap Canlı Sokak/Bina Haritası (Aktif Oyun)
 function oyunHaritaKur() {
     if(!oyunHarita) {
         oyunHarita = L.map('oyun_harita', {zoomControl: false}).setView([lat, lon], 16);
@@ -489,6 +574,7 @@ async function sunucuDurumCek() {
             document.getElementById('saklan_baslik').innerText = (ben.rol === "HUSHER") ? "BEKLE!" : "SAKLAN!";
             document.getElementById('saklan_alt').innerText = (ben.rol === "HUSHER") ? "Saklananlar yerleşiyor, hareket etme!" : "Husher'lar henüz kimseyi göremiyor.";
             document.getElementById('saklan_sayac').innerText = d.saklanma_sayac;
+            document.getElementById('cep_sayac_bilgi').innerText = d.saklanma_sayac;
             document.getElementById('saklan_toplam').innerText = `/ 0${d.ayarlar.saklanma}:00`;
             document.getElementById('saklan_mesafe').innerText = `Sınıra ${Math.max(0, d.aktif_alan - ben.mesafe)} m • GPS ±4 m`;
         } else {
@@ -496,6 +582,7 @@ async function sunucuDurumCek() {
                 ekranGec('ekran_oyun');
             }
             document.getElementById('oyun_kalan_sure').innerText = d.oyun_sayac;
+            document.getElementById('cep_sayac_bilgi').innerText = d.oyun_sayac;
             document.getElementById('oyun_kalan_kisi').innerText = `${d.kalan_saklanan}/${d.toplam_saklanan}`;
             document.getElementById('oyun_puan').innerText = ben.xp;
             document.getElementById('oyun_rol_etiket').innerText = ben.rol;
@@ -685,4 +772,5 @@ def durum():
     })
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
