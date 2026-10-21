@@ -38,6 +38,7 @@ HTML_KODU = """
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <title>HUSH</title>
+    <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -66,7 +67,6 @@ HTML_KODU = """
         input:checked + .slider { background-color: #111; }
         input:checked + .slider:before { transform: translateX(22px); }
         
-        /* CEP MODU (HAYALET SİYAH EKRAN) */
         #cep_modu_katman {
             display: none;
             position: fixed;
@@ -84,7 +84,6 @@ HTML_KODU = """
 </head>
 <body onclick="ekranAcikTut()">
 
-<!-- CEP MODU KARARTMA EKRANI -->
 <div id="cep_modu_katman" onclick="cepModuTiklama()">
     <div style="font-size: 28px; margin-bottom: 10px;">🌙</div>
     <div style="font-weight: 800; font-size: 16px; color: #333;">CEP MODU AKTİF</div>
@@ -359,7 +358,10 @@ let oyuncuAdi = "", aktifKod = "", gpsAcik = false, lat = 41.2867, lon = 36.3300
 let haritaSecim = null, secimDaire = null, oyunHarita = null, oyunDaire = null, icDaire = null, oyuncuMarker = null, husherPinleri = [];
 let takipTimer = null, gpsIzleyici = null, uykuKilidi = null, sonTiklama = 0;
 
-// Ekranın kapanmasını engelleyen Wake Lock fonksiyonu
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+}
+
 async function ekranAcikTut() {
     try {
         if ('wakeLock' in navigator && !uykuKilidi) {
@@ -369,7 +371,6 @@ async function ekranAcikTut() {
     } catch (err) {}
 }
 
-// Cep Modu (Hayalet Siyah Ekran) Aç / Kapat
 function cepModuAc() {
     ekranAcikTut();
     gpsBaslat();
@@ -630,6 +631,33 @@ async function sunucuDurumCek() {
 @app.route('/')
 def index():
     return render_template_string(HTML_KODU)
+
+@app.route('/manifest.json')
+def manifest():
+    return jsonify({
+        "name": "HUSH - Canlı Saklambaç",
+        "short_name": "HUSH",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#f5f5f3",
+        "theme_color": "#0f0f0f",
+        "icons": [
+            {
+                "src": "https://img.icons8.com/ios-filled/512/ffffff/marker.png",
+                "sizes": "512x512",
+                "type": "image/png"
+            }
+        ]
+    })
+
+@app.route('/sw.js')
+def service_worker():
+    sw_code = """
+    self.addEventListener('fetch', function(event) {
+        // PWA Bridge
+    });
+    """
+    return sw_code, 200, {'Content-Type': 'application/javascript'}
 
 @app.route('/oda_kur', methods=['POST'])
 def oda_kur():
