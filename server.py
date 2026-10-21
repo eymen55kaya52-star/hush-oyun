@@ -87,7 +87,7 @@ HTML_KODU = """
 <div id="cep_modu_katman" onclick="cepModuTiklama()">
     <div style="font-size: 28px; margin-bottom: 10px;">🌙</div>
     <div style="font-weight: 800; font-size: 16px; color: #333;">CEP MODU AKTİF</div>
-    <div style="font-size: 12px; color: #1a1a1a; margin-top: 6px;">GPS arka planda kesintisiz çalışıyor.<br>Ekranı açmak için <b>iki kez dokun</b>.</div>
+    <div style="font-size: 12px; color: #1a1a1a; margin-top: 6px;">GPS ve zaman arka planda eşitleniyor.<br>Ekranı açmak için <b>iki kez dokun</b>.</div>
     <div id="cep_sayac_bilgi" style="font-size: 22px; font-weight: 900; color: #1f1f1f; margin-top: 25px;">--:--</div>
 </div>
 
@@ -385,10 +385,12 @@ function cepModuTiklama() {
     sonTiklama = simdi;
 }
 
+// Sekme tekrar ekrana geldiğinde veya uyandığında anında sunucuyla senkronize ol
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         ekranAcikTut();
         gpsBaslat();
+        if(aktifKod) sunucuDurumCek();
     }
 });
 
@@ -547,6 +549,7 @@ async function yakalandimBildir() {
 }
 
 async function sunucuDurumCek() {
+    if(!aktifKod) return;
     let res = await fetch('/durum', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kod:aktifKod, oyuncu:oyuncuAdi, lat:lat, lon:lon, gps:gpsAcik})});
     let d = await res.json();
     if(d.hata) return;
