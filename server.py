@@ -62,12 +62,13 @@ HTML_KODU = """
         
         #harita_secim, #oyun_harita { 
             width: 100%; 
-            height: 330px; 
+            height: 340px; 
+            min-height: 340px;
             border-radius: 22px; 
             z-index: 1; 
             box-shadow: 0 8px 25px rgba(0,0,0,0.08);
             border: 2px solid #fff;
-            background: #e5e7eb;
+            background: #aad3df;
         }
         .leaflet-control-attribution { display: none !important; }
         
@@ -452,7 +453,6 @@ HTML_KODU = """
             <button class="hizli-chip" onclick="hizliMesajGonder('Çok yaklaştın! 🎯')">🎯 Çok yaklaştın!</button>
             <button class="hizli-chip" onclick="hizliMesajGonder('Beni bulamazsın! 👻')">👻 Beni bulamazsın!</button>
             <button class="hizli-chip" onclick="hizliMesajGonder('Buradayım, gel al! 🏃‍♂️')">🏃‍♂️ Buradayım!</button>
-            <button class="hizli-chip" onclick="sahteSinyalGonder()">📍 Sahte Sinyal At</button>
         </div>
 
         <div id="alan_disi_kart" class="kart" style="display:none; margin-top:8px; border:2px solid #ef4444;">
@@ -523,7 +523,7 @@ let oncekiAlan = -1;
 let oncekiAlanDisi = false;
 let sonMesajSayisi = 0;
 
-const HARITA_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+const HARITA_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 const oyuncuIkon = L.divIcon({
     className: '',
@@ -678,8 +678,8 @@ function gpsBaslat() {
 function ekranGec(id) {
     document.querySelectorAll('.ekran').forEach(e => e.classList.remove('aktif'));
     document.getElementById(id).classList.add('aktif');
-    if(id === 'ekran_alan') setTimeout(haritaSecimKur, 150);
-    if(id === 'ekran_oyun') setTimeout(oyunHaritaKur, 150);
+    if(id === 'ekran_alan') setTimeout(() => { haritaSecimKur(); }, 150);
+    if(id === 'ekran_oyun') setTimeout(() => { oyunHaritaKur(); }, 150);
 }
 
 function sayiDegis(tip, fark) {
@@ -714,10 +714,8 @@ function haritaSecimKur() {
         }).setView([lat, lon], 16);
 
         L.tileLayer(HARITA_URL, {
-            maxZoom: 20,
-            detectRetina: true,
-            updateWhenIdle: false,
-            keepBuffer: 4
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
         }).addTo(haritaSecim);
 
         secimDaire = L.circle([lat, lon], {
@@ -736,12 +734,10 @@ function haritaSecimKur() {
             secimMarker.setLatLng(e.latlng);
             haritaSecim.panTo(e.latlng, {animate: true, duration: 0.4});
         });
-    } else {
-        haritaSecim.setView([lat, lon], 16);
-        secimDaire.setLatLng([lat, lon]);
-        secimMarker.setLatLng([lat, lon]);
     }
-    setTimeout(() => haritaSecim.invalidateSize(), 150);
+    setTimeout(() => {
+        haritaSecim.invalidateSize();
+    }, 200);
 }
 
 function secimKonumaOdakla() {
@@ -819,17 +815,6 @@ async function hizliMesajGonder(mesaj) {
     await fetch('/mesaj_gonder', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kod:aktifKod, oyuncu:oyuncuAdi, mesaj:mesaj})});
 }
 
-async function sahteSinyalGonder() {
-    // Bulunduğun konumun 40-80 metre yakınına sahte bir sapma vererek sinyal at
-    let rastgeleAci = Math.random() * Math.PI * 2;
-    let rastgeleMesafe = 40 + Math.random() * 40;
-    let sahteLat = lat + (rastgeleMesafe / 111320) * Math.cos(rastgeleAci);
-    let sahteLon = lon + (rastgeleMesafe / (111320 * Math.cos(lat * Math.PI / 180))) * Math.sin(rastgeleAci);
-
-    await fetch('/sahte_sinyal', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kod:aktifKod, oyuncu:oyuncuAdi, lat:sahteLat, lon:sahteLon})});
-    alert("📍 Sahte konum sinyali haritaya fırlatıldı!");
-}
-
 function oyunHaritaKur() {
     if(!oyunHarita) {
         oyunHarita = L.map('oyun_harita', {
@@ -841,10 +826,8 @@ function oyunHaritaKur() {
         }).setView([lat, lon], 16);
 
         L.tileLayer(HARITA_URL, {
-            maxZoom: 20,
-            detectRetina: true,
-            updateWhenIdle: false,
-            keepBuffer: 4
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
         }).addTo(oyunHarita);
 
         oyunDaire = L.circle([lat, lon], {
@@ -865,7 +848,9 @@ function oyunHaritaKur() {
 
         oyuncuMarker = L.marker([lat, lon], {icon: oyuncuIkon, zIndexOffset: 1000}).addTo(oyunHarita);
     }
-    setTimeout(() => oyunHarita.invalidateSize(), 150);
+    setTimeout(() => {
+        oyunHarita.invalidateSize();
+    }, 200);
 }
 
 function haritaMerkezle() {
@@ -921,7 +906,6 @@ async function sunucuDurumCek() {
         }
         oncekiFaz = d.faz;
 
-        // Yeni gelen mesajları kontrol et ve uyarı ver
         if (d.mesajlar && d.mesajlar.length > sonMesajSayisi) {
             if (sonMesajSayisi > 0) {
                 let sonMsg = d.mesajlar[d.mesajlar.length - 1];
@@ -1018,13 +1002,12 @@ async function sunucuDurumCek() {
                 icDaire.setRadius(Math.max(40, d.aktif_alan * 0.75));
                 oyuncuMarker.setLatLng([lat, lon]);
 
-                let yeniPinImza = JSON.stringify(d.bildirilen_pinler) + "_" + JSON.stringify(d.sahte_pinler) + "_" + ben.rol;
+                let yeniPinImza = JSON.stringify(d.bildirilen_pinler) + "_" + ben.rol;
                 if(yeniPinImza !== sonPinImzasi) {
                     sonPinImzasi = yeniPinImza;
                     husherPinleri.forEach(p => oyunHarita.removeLayer(p));
                     husherPinleri = [];
 
-                    // Gerçek Konum Pini (Sadece Husher'a görünür)
                     if(ben.rol === "HUSHER") {
                         d.bildirilen_pinler.forEach(pin => {
                             let hIkon = L.divIcon({
@@ -1034,20 +1017,6 @@ async function sunucuDurumCek() {
                                 iconAnchor: [12, 12]
                             });
                             let m = L.marker([pin.lat, pin.lon], {icon: hIkon}).addTo(oyunHarita);
-                            husherPinleri.push(m);
-                        });
-                    }
-
-                    // Sahte Sinyal Pinleri (Herkese görünür, kafa karıştırır!)
-                    if(d.sahte_pinler) {
-                        d.sahte_pinler.forEach(pin => {
-                            let sIkon = L.divIcon({
-                                className: '',
-                                html: `<div class="hedef-pin" style="filter: hue-rotate(90deg);"><div class="hedef-etiket">⚡ ${pin.isim} (Sinyal)</div><div class="hedef-dalga"></div><div class="hedef-merkez"></div></div>`,
-                                iconSize: [24, 24],
-                                iconAnchor: [12, 12]
-                            });
-                            let m = L.marker([pin.lat, pin.lon], {icon: sIkon}).addTo(oyunHarita);
                             husherPinleri.push(m);
                         });
                     }
@@ -1106,7 +1075,6 @@ def oda_kur():
         "merkez_lon": v.get("merkez_lon", 36.3300),
         "son_periyot": -1,
         "bildirilen_pinler": [],
-        "sahte_pinler": [],
         "mesajlar": [],
         "oyuncular": {
             v["kurucu"]: {"rol": "SAKLANAN", "ilk_rol": "SAKLANAN", "lat": v.get("merkez_lat", 41.2867), "lon": v.get("merkez_lon", 36.3300), "gps": True, "xp": 1240, "mesafe": 0, "alan_disi": False, "yakalandi": False, "yon": "merkeze"}
@@ -1136,7 +1104,6 @@ def baslat():
     oda["baslangic"] = time.time()
     oda["son_periyot"] = -1
     oda["bildirilen_pinler"] = []
-    oda["sahte_pinler"] = []
     oda["mesajlar"] = []
     isimler = list(oda["oyuncular"].keys())
     husher_sayisi = min(oda["ayarlar"]["husher"], max(1, len(isimler) - 1)) if len(isimler) > 1 else 0
@@ -1157,7 +1124,6 @@ def tekrar_oyna():
         oda["bitti"] = False
         oda["odul_verildi"] = False
         oda["bildirilen_pinler"] = []
-        oda["sahte_pinler"] = []
         oda["mesajlar"] = []
         for isim, p in oda["oyuncular"].items():
             p["yakalandi"] = False
@@ -1172,16 +1138,6 @@ def mesaj_gonder():
         oda["mesajlar"].append({"gonderen": v.get("oyuncu"), "mesaj": v.get("mesaj")})
         if len(oda["mesajlar"]) > 10:
             oda["mesajlar"].pop(0)
-    return jsonify({"basari": True})
-
-@app.route('/sahte_sinyal', methods=['POST'])
-def sahte_sinyal():
-    v = request.json
-    oda = odalar.get(v.get("kod"))
-    if oda:
-        oda["sahte_pinler"].append({"isim": v.get("oyuncu"), "lat": v.get("lat"), "lon": v.get("lon")})
-        if len(oda["sahte_pinler"]) > 5:
-            oda["sahte_pinler"].pop(0)
     return jsonify({"basari": True})
 
 @app.route('/foto_xp', methods=['POST'])
@@ -1306,7 +1262,6 @@ def durum():
         "toplam_saklanan": max(1, toplam_saklanan),
         "kalan_saklanan": kalan_saklanan,
         "bildirilen_pinler": oda["bildirilen_pinler"],
-        "sahte_pinler": oda["sahte_pinler"],
         "mesajlar": oda["mesajlar"],
         "oyuncular": oda["oyuncular"],
         "ayarlar": oda["ayarlar"]
