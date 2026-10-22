@@ -59,7 +59,116 @@ HTML_KODU = """
         .kod-kutu { width: 44px; height: 54px; background: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
         .badge-hazir { background: #e6f9ed; color: #15803d; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
         .badge-kapali { background: #fee2e2; color: #b91c1c; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-        #harita_secim, #oyun_harita { width: 100%; height: 350px; border-radius: 20px; z-index: 1; }
+        
+        #harita_secim, #oyun_harita { 
+            width: 100%; 
+            height: 330px; 
+            border-radius: 22px; 
+            z-index: 1; 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            border: 2px solid #fff;
+            background: #e5e7eb;
+        }
+        .leaflet-control-attribution { display: none !important; }
+        
+        .leaflet-marker-icon {
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .oyuncu-radar {
+            position: relative;
+            width: 22px;
+            height: 22px;
+        }
+        .oyuncu-merkez {
+            width: 16px;
+            height: 16px;
+            background: #0f0f0f;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            z-index: 2;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+        .oyuncu-dalga {
+            width: 22px;
+            height: 22px;
+            background: rgba(22, 163, 74, 0.45);
+            border-radius: 50%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            animation: radarDalga 1.8s infinite ease-out;
+        }
+        @keyframes radarDalga {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2.6); opacity: 0; }
+        }
+
+        .hedef-pin {
+            position: relative;
+            width: 24px;
+            height: 24px;
+        }
+        .hedef-merkez {
+            width: 18px;
+            height: 18px;
+            background: #ef4444;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            z-index: 2;
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.6);
+        }
+        .hedef-dalga {
+            width: 24px;
+            height: 24px;
+            background: rgba(239, 68, 68, 0.5);
+            border-radius: 50%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            animation: radarDalga 1.4s infinite ease-out;
+        }
+        .hedef-etiket {
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #991b1b;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 8px;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .harita-odak-btn {
+            position: absolute;
+            bottom: 14px;
+            right: 14px;
+            width: 42px;
+            height: 42px;
+            background: #fff;
+            border: none;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 500;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
         .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 34px; }
@@ -80,14 +189,35 @@ HTML_KODU = """
             text-align: center;
             padding: 20px;
         }
+
+        .hizli-mesaj-bar {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding: 4px 0;
+            margin-top: 6px;
+            scrollbar-width: none;
+        }
+        .hizli-mesaj-bar::-webkit-scrollbar { display: none; }
+        .hizli-chip {
+            background: #eef2ff;
+            color: #3730a3;
+            border: 1px solid #c7d2fe;
+            padding: 6px 12px;
+            border-radius: 14px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+            cursor: pointer;
+        }
     </style>
 </head>
-<body onclick="ekranAcikTut()">
+<body onclick="ekranAcikTut(); sesHazirla();">
 
 <div id="cep_modu_katman" onclick="cepModuTiklama()">
     <div style="font-size: 28px; margin-bottom: 10px;">🌙</div>
     <div style="font-weight: 800; font-size: 16px; color: #333;">CEP MODU AKTİF</div>
-    <div style="font-size: 12px; color: #1a1a1a; margin-top: 6px;">GPS ve zaman arka planda eşitleniyor.<br>Ekranı açmak için <b>iki kez dokun</b>.</div>
+    <div style="font-size: 12px; color: #1a1a1a; margin-top: 6px;">GPS ve titreşim uyarıları arka planda çalışıyor.<br>Ekranı açmak için <b>iki kez dokun</b>.</div>
     <div id="cep_sayac_bilgi" style="font-size: 22px; font-weight: 900; color: #1f1f1f; margin-top: 25px;">--:--</div>
 </div>
 
@@ -210,18 +340,21 @@ HTML_KODU = """
     <div id="ekran_alan" class="ekran">
         <div class="satir" style="margin-bottom:10px;">
             <button onclick="ekranGec('ekran_kur')" style="background:#fff; border:none; width:40px; height:40px; border-radius:50%; font-size:20px;">‹</button>
-            <div style="background:#fff; flex:1; margin-left:10px; padding:10px 16px; border-radius:20px; font-weight:600;">🔍 Canlı Konumunuz (Sokaklar)</div>
+            <div style="background:#fff; flex:1; margin-left:10px; padding:10px 16px; border-radius:20px; font-weight:600;">🔍 Haritaya dokunarak merkezi seç</div>
         </div>
 
-        <div id="harita_secim"></div>
+        <div style="position:relative;">
+            <div id="harita_secim"></div>
+            <button class="harita-odak-btn" onclick="secimKonumaOdakla()">🎯</button>
+        </div>
 
-        <div class="kart" style="margin-top:-20px; z-index:2;">
+        <div class="kart" style="margin-top:-16px; z-index:2;">
             <div class="satir">
                 <div>
                     <div style="font-weight:800; font-size:20px;">Oyun alanı</div>
                     <div id="yaricap_bilgi" style="font-size:13px; color:#666;">Yarıçap 450 m • 0,64 km²</div>
                 </div>
-                <span class="badge-hazir">✓ Trafiğe kapalı</span>
+                <span class="badge-hazir">✓ HD Harita</span>
             </div>
             <input type="range" id="rng_yaricap" min="100" max="1000" step="50" value="450" style="width:100%; margin:16px 0; accent-color:#16a34a;" oninput="yaricapGuncelle(this.value)">
             <div style="display:flex; gap:14px; font-size:12px; color:#555; margin-bottom:12px;">
@@ -300,7 +433,7 @@ HTML_KODU = """
                     <div id="kirmizi_sayac" style="font-size:32px; font-weight:900;">00:58</div>
                 </div>
                 <div style="text-align:right; font-size:12px; color:#fecaca;">
-                    <div id="daralma_kacinci">3 daralmanın 2'si</div>
+                    <div id="daralma_kacinci">Dikkat!</div>
                     <div id="daralma_yeni_r">Yeni yarıçap 300 m</div>
                 </div>
             </div>
@@ -308,9 +441,18 @@ HTML_KODU = """
 
         <div style="position:relative; flex:1;">
             <div id="oyun_harita"></div>
-            <div id="konum_uyari_balonu" style="position:absolute; top:12px; left:50%; transform:translateX(-50%); background:#fff; padding:8px 14px; border-radius:20px; font-size:12px; font-weight:600; box-shadow:0 2px 10px rgba(0,0,0,0.15); z-index:500; white-space:nowrap;">
+            <div id="konum_uyari_balonu" style="position:absolute; top:12px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,0.95); backdrop-filter:blur(6px); padding:8px 14px; border-radius:20px; font-size:12px; font-weight:600; box-shadow:0 4px 15px rgba(0,0,0,0.12); z-index:500; white-space:nowrap;">
                 Husher'lar seni <b>burada</b> görüyor
             </div>
+            <button class="harita-odak-btn" onclick="oyunKonumaOdakla()">🎯</button>
+        </div>
+
+        <!-- HIZLI TAKTİK MESAJLARI BARİ -->
+        <div class="hizli-mesaj-bar">
+            <button class="hizli-chip" onclick="hizliMesajGonder('Çok yaklaştın! 🎯')">🎯 Çok yaklaştın!</button>
+            <button class="hizli-chip" onclick="hizliMesajGonder('Beni bulamazsın! 👻')">👻 Beni bulamazsın!</button>
+            <button class="hizli-chip" onclick="hizliMesajGonder('Buradayım, gel al! 🏃‍♂️')">🏃‍♂️ Buradayım!</button>
+            <button class="hizli-chip" onclick="sahteSinyalGonder()">📍 Sahte Sinyal At</button>
         </div>
 
         <div id="alan_disi_kart" class="kart" style="display:none; margin-top:8px; border:2px solid #ef4444;">
@@ -350,16 +492,118 @@ HTML_KODU = """
         </div>
     </div>
 
+    <!-- 8. EKRAN: OYUN BİTTİ & SIRALAMA -->
+    <div id="ekran_bitti" class="ekran" style="background:#0f0f0f; color:#fff; text-align:center;">
+        <div style="margin-top:20px; font-size:54px;">🏆</div>
+        <div id="bitti_etiket" style="display:inline-block; margin:8px auto; background:#22c55e; color:#000; font-weight:900; font-size:12px; padding:5px 14px; border-radius:20px;">OYUN SONA ERDİ</div>
+        <h1 id="bitti_kazanan_baslik" style="font-size:32px; font-weight:900; margin:6px 0;">SAKLANANLAR KAZANDI!</h1>
+        <p id="bitti_aciklama" style="color:#aaa; font-size:14px; margin:0 0 20px 0;">Süre doldu ve saklananlar hayatta kaldı.</p>
+
+        <div style="text-align:left; font-size:13px; font-weight:800; color:#888; margin-bottom:8px;">MAÇ SIRALAMASI (XP)</div>
+        <div id="bitti_siralama_liste" style="flex:1; overflow-y:auto; margin-bottom:14px;"></div>
+
+        <button class="btn-beyaz" style="background:#22c55e; color:#000; border:none;" onclick="tekrarOyna()">🔄 Aynı Odada Tekrar Oyna</button>
+        <button class="btn-siyah" style="background:#1f1f1f; border:1px solid #333;" onclick="ekranGec('ekran_home')">Ana Ekrana Dön</button>
+    </div>
+
 </div>
 
 <script>
 let ayarlar = { oyuncu: 8, sure: 20, saklanma: 3, husher: 2, konum: 2, yaricap: 450 };
 let oyuncuAdi = "", aktifKod = "", gpsAcik = false, lat = 41.2867, lon = 36.3300;
-let haritaSecim = null, secimDaire = null, oyunHarita = null, oyunDaire = null, icDaire = null, oyuncuMarker = null, husherPinleri = [];
+let haritaSecim = null, secimDaire = null, secimMarker = null;
+let oyunHarita = null, oyunDaire = null, icDaire = null, oyuncuMarker = null, husherPinleri = [];
+let sonPinImzasi = "";
 let takipTimer = null, gpsIzleyici = null, uykuKilidi = null, sonTiklama = 0;
+
+let sesCtx = null;
+let oncekiFaz = "";
+let oncekiPeriyot = -1;
+let oncekiAlan = -1;
+let oncekiAlanDisi = false;
+let sonMesajSayisi = 0;
+
+const HARITA_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+
+const oyuncuIkon = L.divIcon({
+    className: '',
+    html: '<div class="oyuncu-radar"><div class="oyuncu-dalga"></div><div class="oyuncu-merkez"></div></div>',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11]
+});
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js');
+}
+
+function sesHazirla() {
+    try {
+        if (!sesCtx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) sesCtx = new AudioCtx();
+        }
+        if (sesCtx && sesCtx.state === 'suspended') {
+            sesCtx.resume();
+        }
+    } catch (e) {}
+}
+
+function uyariVer(tip) {
+    if ('vibrate' in navigator) {
+        try {
+            if (tip === 'konum') {
+                navigator.vibrate([200, 100, 200]);
+            } else if (tip === 'daralma') {
+                navigator.vibrate([350, 120, 350, 120, 350]);
+            } else if (tip === 'basladi') {
+                navigator.vibrate(600);
+            } else if (tip === 'bitti') {
+                navigator.vibrate([400, 150, 400, 150, 600]);
+            } else if (tip === 'mesaj') {
+                navigator.vibrate(100);
+            }
+        } catch (e) {}
+    }
+
+    try {
+        sesHazirla();
+        if (sesCtx) {
+            const osc = sesCtx.createOscillator();
+            const gain = sesCtx.createGain();
+            osc.connect(gain);
+            gain.connect(sesCtx.destination);
+
+            if (tip === 'konum') {
+                osc.frequency.setValueAtTime(880, sesCtx.currentTime);
+                gain.gain.setValueAtTime(0.15, sesCtx.currentTime);
+                osc.start();
+                osc.stop(sesCtx.currentTime + 0.18);
+            } else if (tip === 'daralma') {
+                osc.frequency.setValueAtTime(440, sesCtx.currentTime);
+                osc.frequency.setValueAtTime(660, sesCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.2, sesCtx.currentTime);
+                osc.start();
+                osc.stop(sesCtx.currentTime + 0.35);
+            } else if (tip === 'basladi') {
+                osc.frequency.setValueAtTime(587, sesCtx.currentTime);
+                gain.gain.setValueAtTime(0.2, sesCtx.currentTime);
+                osc.start();
+                osc.stop(sesCtx.currentTime + 0.4);
+            } else if (tip === 'bitti') {
+                osc.frequency.setValueAtTime(523, sesCtx.currentTime);
+                osc.frequency.setValueAtTime(659, sesCtx.currentTime + 0.15);
+                osc.frequency.setValueAtTime(784, sesCtx.currentTime + 0.30);
+                gain.gain.setValueAtTime(0.25, sesCtx.currentTime);
+                osc.start();
+                osc.stop(sesCtx.currentTime + 0.55);
+            } else if (tip === 'mesaj') {
+                osc.frequency.setValueAtTime(750, sesCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, sesCtx.currentTime);
+                osc.start();
+                osc.stop(sesCtx.currentTime + 0.1);
+            }
+        }
+    } catch (e) {}
 }
 
 async function ekranAcikTut() {
@@ -373,6 +617,7 @@ async function ekranAcikTut() {
 
 function cepModuAc() {
     ekranAcikTut();
+    sesHazirla();
     gpsBaslat();
     document.getElementById('cep_modu_katman').style.display = 'flex';
 }
@@ -385,7 +630,6 @@ function cepModuTiklama() {
     sonTiklama = simdi;
 }
 
-// Sekme tekrar ekrana geldiğinde veya uyandığında anında sunucuyla senkronize ol
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         ekranAcikTut();
@@ -434,8 +678,8 @@ function gpsBaslat() {
 function ekranGec(id) {
     document.querySelectorAll('.ekran').forEach(e => e.classList.remove('aktif'));
     document.getElementById(id).classList.add('aktif');
-    if(id === 'ekran_alan') setTimeout(haritaSecimKur, 200);
-    if(id === 'ekran_oyun') setTimeout(oyunHaritaKur, 200);
+    if(id === 'ekran_alan') setTimeout(haritaSecimKur, 150);
+    if(id === 'ekran_oyun') setTimeout(oyunHaritaKur, 150);
 }
 
 function sayiDegis(tip, fark) {
@@ -461,18 +705,57 @@ function alanSecimeGit() {
 
 function haritaSecimKur() {
     if(!haritaSecim) {
-        haritaSecim = L.map('harita_secim', {zoomControl: false}).setView([lat, lon], 16);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(haritaSecim);
-        secimDaire = L.circle([lat, lon], {radius: ayarlar.yaricap, color: '#16a34a', fillColor: '#4ade80', fillOpacity: 0.25}).addTo(haritaSecim);
+        haritaSecim = L.map('harita_secim', {
+            zoomControl: false,
+            zoomAnimation: true,
+            fadeAnimation: true,
+            inertia: true,
+            preferCanvas: true
+        }).setView([lat, lon], 16);
+
+        L.tileLayer(HARITA_URL, {
+            maxZoom: 20,
+            detectRetina: true,
+            updateWhenIdle: false,
+            keepBuffer: 4
+        }).addTo(haritaSecim);
+
+        secimDaire = L.circle([lat, lon], {
+            radius: ayarlar.yaricap,
+            color: '#16a34a',
+            weight: 3,
+            fillColor: '#22c55e',
+            fillOpacity: 0.18
+        }).addTo(haritaSecim);
+
+        secimMarker = L.marker([lat, lon], {icon: oyuncuIkon}).addTo(haritaSecim);
+
         haritaSecim.on('click', e => {
             lat = e.latlng.lat; lon = e.latlng.lng;
             secimDaire.setLatLng(e.latlng);
+            secimMarker.setLatLng(e.latlng);
+            haritaSecim.panTo(e.latlng, {animate: true, duration: 0.4});
         });
     } else {
         haritaSecim.setView([lat, lon], 16);
         secimDaire.setLatLng([lat, lon]);
+        secimMarker.setLatLng([lat, lon]);
     }
     setTimeout(() => haritaSecim.invalidateSize(), 150);
+}
+
+function secimKonumaOdakla() {
+    if(haritaSecim) {
+        haritaSecim.flyTo([lat, lon], 17, {animate: true, duration: 0.8});
+        secimDaire.setLatLng([lat, lon]);
+        secimMarker.setLatLng([lat, lon]);
+    }
+}
+
+function oyunKonumaOdakla() {
+    if(oyunHarita) {
+        oyunHarita.flyTo([lat, lon], 17, {animate: true, duration: 0.8});
+    }
 }
 
 function yaricapGuncelle(val) {
@@ -519,22 +802,74 @@ function lobiAc() {
 }
 
 async function oyunuBaslat() {
+    sesHazirla();
     await fetch('/baslat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kod:aktifKod})});
+}
+
+async function tekrarOyna() {
+    await fetch('/tekrar_oyna', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kod:aktifKod})});
+    oncekiFaz = "";
+    oncekiPeriyot = -1;
+    oncekiAlan = -1;
+    sonMesajSayisi = 0;
+    ekranGec('ekran_lobi');
+}
+
+async function hizliMesajGonder(mesaj) {
+    await fetch('/mesaj_gonder', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kod:aktifKod, oyuncu:oyuncuAdi, mesaj:mesaj})});
+}
+
+async function sahteSinyalGonder() {
+    // Bulunduğun konumun 40-80 metre yakınına sahte bir sapma vererek sinyal at
+    let rastgeleAci = Math.random() * Math.PI * 2;
+    let rastgeleMesafe = 40 + Math.random() * 40;
+    let sahteLat = lat + (rastgeleMesafe / 111320) * Math.cos(rastgeleAci);
+    let sahteLon = lon + (rastgeleMesafe / (111320 * Math.cos(lat * Math.PI / 180))) * Math.sin(rastgeleAci);
+
+    await fetch('/sahte_sinyal', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kod:aktifKod, oyuncu:oyuncuAdi, lat:sahteLat, lon:sahteLon})});
+    alert("📍 Sahte konum sinyali haritaya fırlatıldı!");
 }
 
 function oyunHaritaKur() {
     if(!oyunHarita) {
-        oyunHarita = L.map('oyun_harita', {zoomControl: false}).setView([lat, lon], 16);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(oyunHarita);
-        oyunDaire = L.circle([lat, lon], {radius: ayarlar.yaricap, color: '#16a34a', fillColor: '#4ade80', fillOpacity: 0.2}).addTo(oyunHarita);
-        icDaire = L.circle([lat, lon], {radius: ayarlar.yaricap * 0.75, color: '#111', dashArray: '6, 6', fill: false}).addTo(oyunHarita);
-        oyuncuMarker = L.circleMarker([lat, lon], {radius: 9, color: '#fff', weight: 3, fillColor: '#111', fillOpacity: 1}).addTo(oyunHarita);
+        oyunHarita = L.map('oyun_harita', {
+            zoomControl: false,
+            zoomAnimation: true,
+            fadeAnimation: true,
+            inertia: true,
+            preferCanvas: true
+        }).setView([lat, lon], 16);
+
+        L.tileLayer(HARITA_URL, {
+            maxZoom: 20,
+            detectRetina: true,
+            updateWhenIdle: false,
+            keepBuffer: 4
+        }).addTo(oyunHarita);
+
+        oyunDaire = L.circle([lat, lon], {
+            radius: ayarlar.yaricap,
+            color: '#16a34a',
+            weight: 3,
+            fillColor: '#22c55e',
+            fillOpacity: 0.14
+        }).addTo(oyunHarita);
+
+        icDaire = L.circle([lat, lon], {
+            radius: ayarlar.yaricap * 0.75,
+            color: '#0f0f0f',
+            weight: 2,
+            dashArray: '6, 8',
+            fill: false
+        }).addTo(oyunHarita);
+
+        oyuncuMarker = L.marker([lat, lon], {icon: oyuncuIkon, zIndexOffset: 1000}).addTo(oyunHarita);
     }
-    oyunHarita.invalidateSize();
+    setTimeout(() => oyunHarita.invalidateSize(), 150);
 }
 
 function haritaMerkezle() {
-    if(oyunHarita && oyunDaire) oyunHarita.panTo(oyunDaire.getLatLng());
+    if(oyunHarita && oyunDaire) oyunHarita.flyTo(oyunDaire.getLatLng(), 16, {animate: true, duration: 0.8});
 }
 
 async function husherFotografla() {
@@ -555,6 +890,9 @@ async function sunucuDurumCek() {
     if(d.hata) return;
 
     if(!d.basladi) {
+        if(document.getElementById('ekran_bitti').classList.contains('aktif')) {
+            ekranGec('ekran_lobi');
+        }
         let isimler = Object.keys(d.oyuncular);
         document.getElementById('lobi_oyuncu_sayisi').innerText = `Oyuncular ${isimler.length}/${d.ayarlar.oyuncu}`;
         document.getElementById('lobi_ozet').innerText = `${d.ayarlar.sure} dk • ${d.ayarlar.husher} husher`;
@@ -573,6 +911,28 @@ async function sunucuDurumCek() {
         document.getElementById('lobi_liste').innerHTML = listeHtml;
     } else {
         let ben = d.oyuncular[oyuncuAdi];
+
+        if (oncekiFaz === "SAKLANMA" && d.faz === "OYUN") {
+            uyariVer('basladi');
+        }
+        if (oncekiFaz !== "BITTI" && d.faz === "BITTI") {
+            document.getElementById('cep_modu_katman').style.display = 'none';
+            uyariVer('bitti');
+        }
+        oncekiFaz = d.faz;
+
+        // Yeni gelen mesajları kontrol et ve uyarı ver
+        if (d.mesajlar && d.mesajlar.length > sonMesajSayisi) {
+            if (sonMesajSayisi > 0) {
+                let sonMsg = d.mesajlar[d.mesajlar.length - 1];
+                if (sonMsg.gonderen !== oyuncuAdi) {
+                    uyariVer('mesaj');
+                    document.getElementById('konum_uyari_balonu').innerHTML = `💬 <b>${sonMsg.gonderen}</b>: ${sonMsg.mesaj}`;
+                }
+            }
+            sonMesajSayisi = d.mesajlar.length;
+        }
+
         if(d.faz === "SAKLANMA") {
             if(!document.getElementById('ekran_saklan').classList.contains('aktif')) ekranGec('ekran_saklan');
             document.getElementById('saklan_baslik').innerText = (ben.rol === "HUSHER") ? "BEKLE!" : "SAKLAN!";
@@ -581,17 +941,62 @@ async function sunucuDurumCek() {
             document.getElementById('cep_sayac_bilgi').innerText = d.saklanma_sayac;
             document.getElementById('saklan_toplam').innerText = `/ 0${d.ayarlar.saklanma}:00`;
             document.getElementById('saklan_mesafe').innerText = `Sınıra ${Math.max(0, d.aktif_alan - ben.mesafe)} m • GPS ±4 m`;
+        } else if(d.faz === "BITTI") {
+            if(!document.getElementById('ekran_bitti').classList.contains('aktif')) ekranGec('ekran_bitti');
+            document.getElementById('bitti_kazanan_baslik').innerText = d.kazanan_baslik;
+            document.getElementById('bitti_aciklama').innerText = d.kazanan_aciklama;
+            document.getElementById('ana_xp').innerText = ben.xp;
+
+            let sirali = Object.entries(d.oyuncular).sort((a, b) => b[1].xp - a[1].xp);
+            let siraHtml = "";
+            sirali.forEach((item, idx) => {
+                let isim = item[0];
+                let p = item[1];
+                let durumYazi = (p.ilk_rol === "HUSHER") ? "👁 Husher" : (p.yakalandi ? "🏁 Yakalandı" : "🛡 Hayatta Kaldı");
+                let madalya = idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : `#${idx+1}`));
+                siraHtml += `<div style="background:#1a1a1a; border:1px solid #2a2a2a; border-radius:14px; padding:12px 16px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <span style="font-size:20px; font-weight:900;">${madalya}</span>
+                        <div style="text-align:left;">
+                            <div style="font-weight:800; color:#fff;">${isim}</div>
+                            <div style="font-size:11px; color:#888;">${durumYazi}</div>
+                        </div>
+                    </div>
+                    <div style="font-size:18px; font-weight:900; color:#4ade80;">${p.xp} XP</div>
+                </div>`;
+            });
+            document.getElementById('bitti_siralama_liste').innerHTML = siraHtml;
         } else {
             if(document.getElementById('ekran_saklan').classList.contains('aktif') || document.getElementById('ekran_lobi').classList.contains('aktif')) {
                 ekranGec('ekran_oyun');
             }
+
+            if (d.periyot_no !== undefined && d.periyot_no !== oncekiPeriyot) {
+                if (oncekiPeriyot !== -1) {
+                    uyariVer('konum');
+                }
+                oncekiPeriyot = d.periyot_no;
+            }
+
+            if (oncekiAlan !== -1 && d.aktif_alan < oncekiAlan) {
+                uyariVer('daralma');
+            }
+            oncekiAlan = d.aktif_alan;
+
+            if (!oncekiAlanDisi && ben.alan_disi) {
+                uyariVer('daralma');
+            }
+            oncekiAlanDisi = ben.alan_disi;
+
             document.getElementById('oyun_kalan_sure').innerText = d.oyun_sayac;
             document.getElementById('cep_sayac_bilgi').innerText = d.oyun_sayac;
             document.getElementById('oyun_kalan_kisi').innerText = `${d.kalan_saklanan}/${d.toplam_saklanan}`;
             document.getElementById('oyun_puan').innerText = ben.xp;
             document.getElementById('oyun_rol_etiket').innerText = ben.rol;
             document.getElementById('oyun_daralma_sayac').innerText = `Daralma ${d.daralma_sayac}`;
-            document.getElementById('konum_uyari_balonu').innerHTML = `Son konum bildirimi • <b>${d.konum_sayac}</b> sonra`;
+            if(sonMesajSayisi === 0) {
+                document.getElementById('konum_uyari_balonu').innerHTML = `Son konum bildirimi • <b>${d.konum_sayac}</b> sonra`;
+            }
 
             if(ben.alan_disi) {
                 document.getElementById('ust_bar_normal').style.display = 'none';
@@ -613,14 +1018,39 @@ async function sunucuDurumCek() {
                 icDaire.setRadius(Math.max(40, d.aktif_alan * 0.75));
                 oyuncuMarker.setLatLng([lat, lon]);
 
-                husherPinleri.forEach(p => oyunHarita.removeLayer(p));
-                husherPinleri = [];
-                if(ben.rol === "HUSHER") {
-                    d.bildirilen_pinler.forEach(pin => {
-                        let m = L.circleMarker([pin.lat, pin.lon], {radius: 10, color:'#dc2626', fillColor:'#ef4444', fillOpacity:0.9})
-                            .bindPopup(`<b>${pin.isim}</b> (Son Konum)`).addTo(oyunHarita);
-                        husherPinleri.push(m);
-                    });
+                let yeniPinImza = JSON.stringify(d.bildirilen_pinler) + "_" + JSON.stringify(d.sahte_pinler) + "_" + ben.rol;
+                if(yeniPinImza !== sonPinImzasi) {
+                    sonPinImzasi = yeniPinImza;
+                    husherPinleri.forEach(p => oyunHarita.removeLayer(p));
+                    husherPinleri = [];
+
+                    // Gerçek Konum Pini (Sadece Husher'a görünür)
+                    if(ben.rol === "HUSHER") {
+                        d.bildirilen_pinler.forEach(pin => {
+                            let hIkon = L.divIcon({
+                                className: '',
+                                html: `<div class="hedef-pin"><div class="hedef-etiket">${pin.isim}</div><div class="hedef-dalga"></div><div class="hedef-merkez"></div></div>`,
+                                iconSize: [24, 24],
+                                iconAnchor: [12, 12]
+                            });
+                            let m = L.marker([pin.lat, pin.lon], {icon: hIkon}).addTo(oyunHarita);
+                            husherPinleri.push(m);
+                        });
+                    }
+
+                    // Sahte Sinyal Pinleri (Herkese görünür, kafa karıştırır!)
+                    if(d.sahte_pinler) {
+                        d.sahte_pinler.forEach(pin => {
+                            let sIkon = L.divIcon({
+                                className: '',
+                                html: `<div class="hedef-pin" style="filter: hue-rotate(90deg);"><div class="hedef-etiket">⚡ ${pin.isim} (Sinyal)</div><div class="hedef-dalga"></div><div class="hedef-merkez"></div></div>`,
+                                iconSize: [24, 24],
+                                iconAnchor: [12, 12]
+                            });
+                            let m = L.marker([pin.lat, pin.lon], {icon: sIkon}).addTo(oyunHarita);
+                            husherPinleri.push(m);
+                        });
+                    }
                 }
             }
         }
@@ -669,13 +1099,17 @@ def oda_kur():
     odalar[kod] = {
         "ayarlar": v,
         "basladi": False,
+        "bitti": False,
+        "odul_verildi": False,
         "baslangic": 0,
         "merkez_lat": v.get("merkez_lat", 41.2867),
         "merkez_lon": v.get("merkez_lon", 36.3300),
         "son_periyot": -1,
         "bildirilen_pinler": [],
+        "sahte_pinler": [],
+        "mesajlar": [],
         "oyuncular": {
-            v["kurucu"]: {"rol": "SAKLANAN", "lat": v.get("merkez_lat", 41.2867), "lon": v.get("merkez_lon", 36.3300), "gps": True, "xp": 1240, "mesafe": 0, "alan_disi": False, "yakalandi": False, "yon": "merkeze"}
+            v["kurucu"]: {"rol": "SAKLANAN", "ilk_rol": "SAKLANAN", "lat": v.get("merkez_lat", 41.2867), "lon": v.get("merkez_lon", 36.3300), "gps": True, "xp": 1240, "mesafe": 0, "alan_disi": False, "yakalandi": False, "yon": "merkeze"}
         }
     }
     return jsonify({"kod": kod})
@@ -687,7 +1121,7 @@ def katil():
     if kod not in odalar:
         return jsonify({"hata": "Oda bulunamadı!"})
     oda = odalar[kod]
-    oda["oyuncular"][v["oyuncu"]] = {"rol": "SAKLANAN", "lat": oda["merkez_lat"], "lon": oda["merkez_lon"], "gps": True, "xp": 1000, "mesafe": 0, "alan_disi": False, "yakalandi": False, "yon": "merkeze"}
+    oda["oyuncular"][v["oyuncu"]] = {"rol": "SAKLANAN", "ilk_rol": "SAKLANAN", "lat": oda["merkez_lat"], "lon": oda["merkez_lon"], "gps": True, "xp": 1000, "mesafe": 0, "alan_disi": False, "yakalandi": False, "yon": "merkeze"}
     return jsonify({"basari": True})
 
 @app.route('/baslat', methods=['POST'])
@@ -697,12 +1131,57 @@ def baslat():
     if not oda:
         return jsonify({"hata": "Oda yok"})
     oda["basladi"] = True
+    oda["bitti"] = False
+    oda["odul_verildi"] = False
     oda["baslangic"] = time.time()
+    oda["son_periyot"] = -1
+    oda["bildirilen_pinler"] = []
+    oda["sahte_pinler"] = []
+    oda["mesajlar"] = []
     isimler = list(oda["oyuncular"].keys())
     husher_sayisi = min(oda["ayarlar"]["husher"], max(1, len(isimler) - 1)) if len(isimler) > 1 else 0
     secilen_husherlar = random.sample(isimler, husher_sayisi)
     for isim, p in oda["oyuncular"].items():
-        p["rol"] = "HUSHER" if isim in secilen_husherlar else "SAKLANAN"
+        rol = "HUSHER" if isim in secilen_husherlar else "SAKLANAN"
+        p["rol"] = rol
+        p["ilk_rol"] = rol
+        p["yakalandi"] = False
+    return jsonify({"basari": True})
+
+@app.route('/tekrar_oyna', methods=['POST'])
+def tekrar_oyna():
+    v = request.json
+    oda = odalar.get(v.get("kod"))
+    if oda:
+        oda["basladi"] = False
+        oda["bitti"] = False
+        oda["odul_verildi"] = False
+        oda["bildirilen_pinler"] = []
+        oda["sahte_pinler"] = []
+        oda["mesajlar"] = []
+        for isim, p in oda["oyuncular"].items():
+            p["yakalandi"] = False
+            p["rol"] = "SAKLANAN"
+    return jsonify({"basari": True})
+
+@app.route('/mesaj_gonder', methods=['POST'])
+def mesaj_gonder():
+    v = request.json
+    oda = odalar.get(v.get("kod"))
+    if oda:
+        oda["mesajlar"].append({"gonderen": v.get("oyuncu"), "mesaj": v.get("mesaj")})
+        if len(oda["mesajlar"]) > 10:
+            oda["mesajlar"].pop(0)
+    return jsonify({"basari": True})
+
+@app.route('/sahte_sinyal', methods=['POST'])
+def sahte_sinyal():
+    v = request.json
+    oda = odalar.get(v.get("kod"))
+    if oda:
+        oda["sahte_pinler"].append({"isim": v.get("oyuncu"), "lat": v.get("lat"), "lon": v.get("lon")})
+        if len(oda["sahte_pinler"]) > 5:
+            oda["sahte_pinler"].pop(0)
     return jsonify({"basari": True})
 
 @app.route('/foto_xp', methods=['POST'])
@@ -757,7 +1236,7 @@ def durum():
         p["mesafe"] = int(mesafe_hesapla(oda["merkez_lat"], oda["merkez_lon"], p["lat"], p["lon"]))
         p["alan_disi"] = p["mesafe"] > aktif_alan
         p["yon"] = yon_hesapla(p["lat"], p["lon"], oda["merkez_lat"], oda["merkez_lon"])
-        if p["rol"] == "SAKLANAN":
+        if p.get("ilk_rol") == "SAKLANAN":
             toplam_saklanan += 1
             if not p["yakalandi"]:
                 kalan_saklanan += 1
@@ -773,6 +1252,35 @@ def durum():
         })
 
     av_gecen = gecen - saklanma_sn
+    oyun_kalan = (oda["ayarlar"]["sure"] * 60) - av_gecen
+
+    if oyun_kalan <= 0 or (toplam_saklanan > 0 and kalan_saklanan == 0):
+        if kalan_saklanan == 0 and toplam_saklanan > 0:
+            kazanan_baslik = "HUSHER'LAR KAZANDI!"
+            kazanan_aciklama = "Tüm saklanan oyuncular süre bitmeden yakalandı!"
+            if not oda.get("odul_verildi"):
+                for p in oda["oyuncular"].values():
+                    if p.get("ilk_rol") == "HUSHER":
+                        p["xp"] += 400
+                oda["odul_verildi"] = True
+        else:
+            kazanan_baslik = "SAKLANANLAR KAZANDI!"
+            kazanan_aciklama = f"Süre doldu ve {kalan_saklanan} oyuncu yakalanmadan hayatta kaldı!"
+            if not oda.get("odul_verildi"):
+                for p in oda["oyuncular"].values():
+                    if p.get("ilk_rol") == "SAKLANAN" and not p["yakalandi"]:
+                        p["xp"] += 500
+                oda["odul_verildi"] = True
+
+        return jsonify({
+            "basladi": True,
+            "faz": "BITTI",
+            "kazanan_baslik": kazanan_baslik,
+            "kazanan_aciklama": kazanan_aciklama,
+            "oyuncular": oda["oyuncular"],
+            "ayarlar": oda["ayarlar"]
+        })
+
     konum_periyot = oda["ayarlar"]["konum"] * 60
     konum_kalan = konum_periyot - (av_gecen % konum_periyot)
 
@@ -785,10 +1293,10 @@ def durum():
                 pinler.append({"isim": isim, "lat": p["lat"], "lon": p["lon"]})
         oda["bildirilen_pinler"] = pinler
 
-    oyun_kalan = (oda["ayarlar"]["sure"] * 60) - av_gecen
     return jsonify({
         "basladi": True,
         "faz": "OYUN",
+        "periyot_no": periyot_no,
         "oyun_sayac": sure_formatla(oyun_kalan),
         "daralma_sayac": sure_formatla(daralma_kalan),
         "konum_sayac": sure_formatla(konum_kalan),
@@ -798,6 +1306,8 @@ def durum():
         "toplam_saklanan": max(1, toplam_saklanan),
         "kalan_saklanan": kalan_saklanan,
         "bildirilen_pinler": oda["bildirilen_pinler"],
+        "sahte_pinler": oda["sahte_pinler"],
+        "mesajlar": oda["mesajlar"],
         "oyuncular": oda["oyuncular"],
         "ayarlar": oda["ayarlar"]
     })
